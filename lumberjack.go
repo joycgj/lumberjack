@@ -34,12 +34,12 @@ import (
 )
 
 const (
-	backupTimeFormat = "2006-01-02T15-04-05.000"
-	defaultMaxSize   = 100
+	defaultMaxSize = 100
 )
 
 // ensure we always implement io.WriteCloser
 var _ io.WriteCloser = (*Logger)(nil)
+var BackupTimeFormat = "2006-01-02T15-04-05.000"
 
 // Logger is an io.WriteCloser that writes to the specified filename.
 //
@@ -244,8 +244,8 @@ func backupName(name string, local bool) string {
 		t = t.UTC()
 	}
 
-	timestamp := t.Format(backupTimeFormat)
-	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
+	timestamp := t.Format(BackupTimeFormat)
+	return filepath.Join(dir, fmt.Sprintf("%s%s.%s", prefix, ext, timestamp))
 }
 
 // openExistingOrNew opens the logfile if it exists and if the current write
@@ -341,17 +341,19 @@ func (l *Logger) oldLogFiles() ([]logInfo, error) {
 	}
 	logFiles := []logInfo{}
 
-	prefix, ext := l.prefixAndExt()
+	//prefix, ext := l.prefixAndExt()
 
+	prefix := filepath.Base(l.filename()) + "."
 	for _, f := range files {
 		if f.IsDir() {
 			continue
 		}
-		name := l.timeFromName(f.Name(), prefix, ext)
+		//name := l.timeFromName(f.Name(), prefix, ext)
+		name := l.timeFromName(f.Name(), prefix)
 		if name == "" {
 			continue
 		}
-		t, err := time.Parse(backupTimeFormat, name)
+		t, err := time.Parse(BackupTimeFormat, name)
 		if err == nil {
 			logFiles = append(logFiles, logInfo{t, f})
 		}
@@ -367,16 +369,12 @@ func (l *Logger) oldLogFiles() ([]logInfo, error) {
 // timeFromName extracts the formatted time from the filename by stripping off
 // the filename's prefix and extension. This prevents someone's filename from
 // confusing time.parse.
-func (l *Logger) timeFromName(filename, prefix, ext string) string {
+func (l *Logger) timeFromName(filename, prefix string) string {
 	if !strings.HasPrefix(filename, prefix) {
 		return ""
 	}
 	filename = filename[len(prefix):]
 
-	if !strings.HasSuffix(filename, ext) {
-		return ""
-	}
-	filename = filename[:len(filename)-len(ext)]
 	return filename
 }
 
